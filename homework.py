@@ -1,15 +1,15 @@
-from contextlib import suppress
-from http import HTTPStatus
+import logging
 import os
 import sys
 import time
+from contextlib import suppress
+from http import HTTPStatus
 from urllib.error import HTTPError
 from venv import logger
-import telegram
-import logging
-import requests
-from dotenv import load_dotenv
 
+import requests
+import telegram
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -47,7 +47,9 @@ def send_message(bot, message):
 def get_api_answer(timestamp):
     """Запрос к API."""
     try:
-        homework_statuses = requests.get(ENDPOINT, headers=HEADERS, params={'from_date': timestamp})
+        homework_statuses = requests.get(ENDPOINT,
+                                         headers=HEADERS,
+                                         params={'from_date': timestamp})
     except requests.RequestException:
         raise ('Ошибка в запросе. Неправильно указан адрес.')
     if homework_statuses.status_code != HTTPStatus.OK:
@@ -56,7 +58,7 @@ def get_api_answer(timestamp):
 
 
 def check_response(response):
-    '''Проверка ответа API'''
+    """Проверка ответа API."""
     if 'homeworks' not in response:
         raise TypeError('Нет ключа homeworks.')
     if not isinstance(response['homeworks'], list):
@@ -65,7 +67,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    '''Извлекает статус проверки домашней работы'''
+    """Извлекает статус проверки домашней работы."""
     if 'homework_name' not in homework:
         raise KeyError('Ключа homework_name не найдено.')
     homework_name = homework.get('homework_name')
@@ -116,6 +118,5 @@ if __name__ == '__main__':
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s, %(levelname)s, %(message)s',
-        filename='main.log'
-        )
+        filename='main.log')
     main()
