@@ -1,5 +1,6 @@
 from contextlib import suppress
 from http import HTTPStatus
+import os
 import sys
 import time
 from urllib.error import HTTPError
@@ -13,9 +14,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-PRACTICUM_TOKEN = 'y0_AgAAAAAiSgTJAAYckQAAAADuYNgd26a-TfDzQkW82NDK5XVqed0uqds'
-TELEGRAM_TOKEN = '6594524470:AAEimmGOgBpoohcC92scrGLN2GgDh86jaEw'
-TELEGRAM_CHAT_ID = '1590615376'
+PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -28,22 +29,23 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+
 def check_tokens():
-    '''Проверка доступности токенов'''
+    """Проверка доступности токенов."""
     return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
-        
+
 
 def send_message(bot, message):
-    '''Отправляет сообщение в Telegram чат'''
+    """Отправляет сообщение в Telegram чат."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f'{message}')
         logging.debug(f'Сообщение отправлено: {message}')
-    except:
-        logging.error(f'Не удалось отправить сообщение: {message}')
+    except telegram.error.TelegramError as error:
+        logging.error(f'Не удалось отправить сообщение: {error}')
 
 
 def get_api_answer(timestamp):
-    '''Запрос к API'''
+    """Запрос к API."""
     try:
         homework_statuses = requests.get(ENDPOINT, headers=HEADERS, params={'from_date': timestamp})
     except requests.RequestException:
@@ -70,7 +72,7 @@ def parse_status(homework):
     homework_status = homework.get('status')
     verdict = HOMEWORK_VERDICTS.get(homework_status)
     if verdict is None:
-        raise ValueError('Непредвиденный статус домашней работы.')
+        raise Exception('Непредвиденный статус домашней работы.')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -98,7 +100,7 @@ def main():
                 logger.info('Новый статус отсутствует.')
             timestamp = response.get('current_date', timestamp)
         except telegram.error.TelegramError as error:
-            logger.error(f'Не удается отправить сообщение {error}.')
+            logger.error(f'Не удается отправить сообщение. {error}')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if message != old_message:
@@ -111,5 +113,9 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s, %(levelname)s, %(message)s',
+        filename='main.log'
+        )
     main()
