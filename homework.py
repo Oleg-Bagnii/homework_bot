@@ -4,7 +4,6 @@ import sys
 import time
 from contextlib import suppress
 from http import HTTPStatus
-from urllib.error import HTTPError
 from venv import logger
 
 import requests
@@ -29,14 +28,18 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+
 class UnexpectedStatusError(Exception):
     """Неожиданный статус."""
+
 
 class NoVariablesError(Exception):
     """Проверьте переменные окружения."""
 
+
 class EmptyResponseAPIError(Exception):
     """Пустой ответ."""
+
 
 class WrongAddressError(Exception):
     """Неправильный адрес."""
