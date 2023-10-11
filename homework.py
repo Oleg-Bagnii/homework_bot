@@ -29,6 +29,18 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+class UnexpectedStatusError(Exception):
+    """Неожиданный статус."""
+
+class NoVariablesError(Exception):
+    """Проверьте переменные окружения."""
+
+class EmptyResponseAPIError(Exception):
+    """Пустой ответ."""
+
+class WrongAddressError(Exception):
+    """Неправильный адрес."""
+
 
 def check_tokens():
     """Проверка доступности токенов."""
@@ -38,6 +50,7 @@ def check_tokens():
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
+        logger.info('Начало отправки сообщения.')
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f'{message}')
         logging.debug(f'Сообщение отправлено: {message}')
     except telegram.error.TelegramError as error:
@@ -47,23 +60,29 @@ def send_message(bot, message):
 def get_api_answer(timestamp):
     """Запрос к API."""
     try:
+        logging.info(f'Отправка запроса {ENDPOINT}.'
+                     f'Заголовки запросов: {HEADERS}.'
+                     f'Параметры запроса {timestamp}')
         homework_statuses = requests.get(ENDPOINT,
                                          headers=HEADERS,
                                          params={'from_date': timestamp})
     except requests.RequestException:
-        raise ('Ошибка в запросе. Неправильно указан адрес.')
+        raise WrongAddressError('Ошибка в запросе. Неправильно указан адрес.')
     if homework_statuses.status_code != HTTPStatus.OK:
-        raise HTTPError('Статус страницы отличный от 200.')
+        raise UnexpectedStatusError('Статус страницы отличный от 200.')
     return homework_statuses.json()
 
 
 def check_response(response):
     """Проверка ответа API."""
+    if not isinstance(response, dict):
+        raise TypeError('Не является словарем.')
+    homework = response.get('homeworks')
     if 'homeworks' not in response:
-        raise TypeError('Нет ключа homeworks.')
-    if not isinstance(response['homeworks'], list):
+        raise EmptyResponseAPIError('Пустой ответ API.')
+    if not isinstance(homework, list):
         raise TypeError('Объект не является списком.')
-    return True
+    return homework
 
 
 def parse_status(homework):
@@ -82,27 +101,27 @@ def main():
     """Основная логика работы бота."""
     if not check_tokens():
         logging.critical('Проверьте переменные окружения.')
-        sys.exit('Отсутствуют переменные окружения.')
+        sys.exit(NoVariablesError)
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
+    timestamp = 0
     send_message(bot, 'Привет')
     old_message = ''
     while True:
         try:
             response = get_api_answer(timestamp)
-            check_response(response)
-            homeworks = response.get('homeworks')
+            homeworks = check_response(response)
             if homeworks:
-                for homework in homeworks:
-                    message = parse_status(homework)
-                    if message != old_message:
-                        old_message = message
-                        send_message(bot, message)
+                homework = homeworks[0]
+                message = parse_status(homework)
+                if message != old_message:
+                    old_message = message
+                    send_message(bot, message)
             else:
-                logger.info('Новый статус отсутствует.')
+                logger.debug('Новый статус отсутствует.')
+                message = parse_status(homework)
             timestamp = response.get('current_date', timestamp)
-        except telegram.error.TelegramError as error:
-            logger.error(f'Не удается отправить сообщение. {error}')
+        except EmptyResponseAPIError:
+            logger.error('Пустой ответ.')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if message != old_message:
