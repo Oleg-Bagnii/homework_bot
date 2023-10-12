@@ -10,6 +10,9 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
+from exceptions import (EmptyResponseAPIError, NoVariablesError,
+                        UnexpectedStatusError, WrongAddressError)
+
 load_dotenv()
 
 
@@ -27,22 +30,6 @@ HOMEWORK_VERDICTS = {
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
-
-
-class UnexpectedStatusError(Exception):
-    """Неожиданный статус."""
-
-
-class NoVariablesError(Exception):
-    """Проверьте переменные окружения."""
-
-
-class EmptyResponseAPIError(Exception):
-    """Пустой ответ."""
-
-
-class WrongAddressError(Exception):
-    """Неправильный адрес."""
 
 
 def check_tokens():
@@ -80,12 +67,12 @@ def check_response(response):
     """Проверка ответа API."""
     if not isinstance(response, dict):
         raise TypeError('Не является словарем.')
-    homework = response.get('homeworks')
+    homeworks = response.get('homeworks')
     if 'homeworks' not in response:
         raise EmptyResponseAPIError('Пустой ответ API.')
-    if not isinstance(homework, list):
+    if not isinstance(homeworks, list):
         raise TypeError('Объект не является списком.')
-    return homework
+    return homeworks
 
 
 def parse_status(homework):
@@ -96,7 +83,7 @@ def parse_status(homework):
     homework_status = homework.get('status')
     verdict = HOMEWORK_VERDICTS.get(homework_status)
     if verdict is None:
-        raise Exception('Непредвиденный статус домашней работы.')
+        raise UnexpectedStatusError('Непредвиденный статус домашней работы.')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -104,7 +91,7 @@ def main():
     """Основная логика работы бота."""
     if not check_tokens():
         logging.critical('Проверьте переменные окружения.')
-        sys.exit(NoVariablesError)
+        raise NoVariablesError('Отсутствуют переменные окружения.')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = 0
     send_message(bot, 'Привет')
@@ -116,12 +103,12 @@ def main():
             if homeworks:
                 homework = homeworks[0]
                 message = parse_status(homework)
-                if message != old_message:
-                    old_message = message
-                    send_message(bot, message)
             else:
                 logger.debug('Новый статус отсутствует.')
-                message = parse_status(homework)
+                message = 'Нет статусов домашней работы.'
+            if message != old_message:
+                old_message = message
+                send_message(bot, message)
             timestamp = response.get('current_date', timestamp)
         except EmptyResponseAPIError:
             logger.error('Пустой ответ.')
