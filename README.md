@@ -12,17 +12,23 @@ Telegram-бот, который обращается к API сервиса Пр�
 ## Как запустить проект
 ### Клонировать репозиторий и перейти в него в командной строке:
 
-```git clone 
+```sh
+git clone 
 cd homework_bot
 ```
 ### Создать и активировать виртуальную среду:
 
-```python -m venv venv
+```sh
+python -m venv venv
 source venv/Scripts/activate
 ```
 ### Установить зависимости из файла requirements.txt:
 
-```pip install -r requirements.txt```
+```sh
+pip install -r requirements.txt
+```
 ### Запустить файл homework.py:
 
-```python homework.py```
+```sh
+python homework.py
+```
