@@ -24,6 +24,7 @@ cd homework_bot
 ```sh
 python -m venv venv
 ```
+
 ```sh
 source venv/Scripts/activate
 ```
